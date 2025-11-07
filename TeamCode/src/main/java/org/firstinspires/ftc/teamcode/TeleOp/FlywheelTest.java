@@ -11,7 +11,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 
-@TeleOp(name="Wheel Axation Mode", group="Prototyping")
+@TeleOp(name="Wheelaxation Mode", group="Prototyping")
 public class FlywheelTest extends LinearOpMode {
 
     @Override
