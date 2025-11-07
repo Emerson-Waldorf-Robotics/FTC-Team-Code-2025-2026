@@ -18,9 +18,6 @@ public class FlywheelTest extends LinearOpMode {
     public void runOpMode() {
         double speed = 0;
 
-        int state = 0;
-        boolean state_changed = false;
-
         final ElapsedTime runtime = new ElapsedTime();
 
         DcMotorEx motorToRun = hardwareMap.get(DcMotorEx.class, "test_motor");
