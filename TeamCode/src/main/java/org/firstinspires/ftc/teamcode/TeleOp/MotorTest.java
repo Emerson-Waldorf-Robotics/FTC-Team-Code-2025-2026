@@ -20,6 +20,7 @@ public class MotorTest extends LinearOpMode {
         
 
         motorToRun.setDirection(DcMotorSimple.Direction.FORWARD);
+        motorToRun.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         telemetry.addData("Status", "Initialized");
         telemetry.addLine("Remember to have the wheels form a cross across the body!!!");
