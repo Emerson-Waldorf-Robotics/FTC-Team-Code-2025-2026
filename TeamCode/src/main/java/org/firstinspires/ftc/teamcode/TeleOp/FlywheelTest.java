@@ -26,7 +26,8 @@ public class FlywheelTest extends LinearOpMode {
         motorToRun.setDirection(DcMotorEx.Direction.REVERSE);
         // Make the motor brake when requested to stop
         motorToRun.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
-        motorToRun.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
+        //motorToRun.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
+        motorToRun.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
 
         telemetry.addData("Status", "Initialized");
         telemetry.addLine("Remember to have the wheels form a cross across the body!!!");
@@ -37,7 +38,7 @@ public class FlywheelTest extends LinearOpMode {
 
         while (opModeIsActive()) {
             if (gamepad1.b) {
-                speed = 0;
+                speed = 1;
             }
 
             if (gamepad1.x) {
@@ -45,16 +46,18 @@ public class FlywheelTest extends LinearOpMode {
             }
 
             if (gamepad1.a) {
-                speed = 0.6;
+                speed = 0.4;
             }
 
             if (gamepad1.y) {
-                speed = 1;
+                speed = 0.5;
             }
 
-            motorToRun.setVelocity(-360 * speed, AngleUnit.DEGREES);
+            //motorToRun.setVelocity(-360 * speed, AngleUnit.DEGREES);
+            motorToRun.setPower(speed);
 
             telemetry.addData("Motor speed (rps)", motorToRun.getVelocity(AngleUnit.DEGREES)/360);
+            telemetry.addData("Motor power", speed);
             telemetry.update();
         }
     }
