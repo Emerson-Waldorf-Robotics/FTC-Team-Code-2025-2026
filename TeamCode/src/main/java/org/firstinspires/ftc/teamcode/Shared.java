@@ -23,6 +23,20 @@ import java.util.function.Supplier;
 
 /** @noinspection unused*/
 public class Shared {
+    private static class config {
+        public static final double FLYWHEEL_STANDBY_SPEED = 0.15;
+        public final static double FLYWHEEL_FULL_SPEED = 0.45;
+        public final static double CONVEYOR_SPEED = 0.5;
+    }
+
+    public static DcMotorEx flywheel = null;
+    public static DcMotorEx conveyor = null;
+
+    public enum FLYWHEEL_SPEED {
+        STANDBY,
+        FULL,
+    }
+
     public static class Qol {
         /// Last button position
         private static final HashMap<String, Boolean> buttonStates = new HashMap<>(4);
@@ -82,6 +96,12 @@ public class Shared {
         telemetry = tel;
         opModeIsActive = op;
 
+        // Other comp specific stuff
+        flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
+        flywheel.setDirection(DcMotorSimple.Direction.REVERSE);
+        conveyor = hardwareMap.get(DcMotorEx.class, "conveyor");
+        conveyor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
         // Driving stuff
         leftFrontDrive  = hardwareMap.get(DcMotorEx.class, "left_front");
         leftBackDrive  = hardwareMap.get(DcMotorEx.class, "left_back");
@@ -106,9 +126,9 @@ public class Shared {
         rightBackDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
     }
 
-    public static void initMotors(DcMotorEx flywheel){
+    public static void initMotors(){
         // UPDATEME: Add per comp initialization here
-        flywheel.setPower(-0.15);
+        setFlywheelSpeed(FLYWHEEL_SPEED.STANDBY);
     }
 
     public static void MoveMotor(int where, @NonNull DcMotorEx motor, boolean exact, int vel){
@@ -368,7 +388,22 @@ public class Shared {
         }
     }
 
-    public static void eggOfEaster(){
-        telemetry.speak("Never gonna give you up, never gonna let you down, never gonna run around and desert you");
+    public static void setFlywheelSpeed(FLYWHEEL_SPEED speed) {
+        switch (speed) {
+            case FULL:
+                flywheel.setPower(config.FLYWHEEL_FULL_SPEED);
+                break;
+            case STANDBY:
+                flywheel.setPower(config.FLYWHEEL_STANDBY_SPEED);
+                break;
+        }
+    }
+
+    public static void runConveyor(boolean on) {
+        if (on) {
+            conveyor.setPower(config.CONVEYOR_SPEED);
+        } else {
+            conveyor.setPower(0);
+        }
     }
 }

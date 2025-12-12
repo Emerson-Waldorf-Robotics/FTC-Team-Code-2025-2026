@@ -76,9 +76,6 @@ public class MainTeleOp extends LinearOpMode {
 
         hardwareInit(hardwareMap, telemetry, this::opModeIsActive);
 
-        flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
-        conveyor = hardwareMap.get(DcMotorEx.class, "conveyor");
-
         // Wait for the game to start (driver presses START)
         telemetry.addData("Status", "Initialized");
         telemetry.addLine("Remember to have the wheels form a cross across the body!!!");
@@ -87,7 +84,7 @@ public class MainTeleOp extends LinearOpMode {
         waitForStart();
         runtime.reset();
 
-        initMotors(flywheel);
+        initMotors();
 
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
@@ -104,25 +101,26 @@ public class MainTeleOp extends LinearOpMode {
 
                 // Turn on flywheel if needed
                 if (!isToggled("flywheel")) {
-                    flywheel.setPower(-0.45);
+                    setFlywheelSpeed(FLYWHEEL_SPEED.FULL);
                     actions.put("flywheel", true);
                 }
 
-                conveyor.setPower(0.5);
+                runConveyor(true);
                 actions.put("conveyor", true);
             } else {
                 // Turn off conveyor
-                conveyor.setPower(0);
+                runConveyor(false);
                 actions.put("conveyor", false);
             }
         }
         if (Qol.checkButton(gamepad1.x, "flywheel")) {
             if (!isToggled("flywheel")) {
                 // Turn on flywheel
-                flywheel.setPower(-0.45);
+                setFlywheelSpeed(FLYWHEEL_SPEED.FULL);
                 actions.put("flywheel", true);
             } else {
-                flywheel.setPower(-0.15);
+                // Put flywheel into standby
+                setFlywheelSpeed(FLYWHEEL_SPEED.STANDBY);
                 actions.put("flywheel", false);
             }
         }

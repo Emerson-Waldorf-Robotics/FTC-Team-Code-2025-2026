@@ -78,8 +78,6 @@ public class MainAuto extends LinearOpMode {
     public void runOpMode() {
         hardwareInit(hardwareMap, telemetry, this::getOpActive);
 
-        DcMotorEx flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
-
         // Wait for the game to start (driver presses START)
         telemetry.addData("Status", "Initialized");
         telemetry.addLine("Remember to have the wheels form a cross across the body!!!");
@@ -91,7 +89,7 @@ public class MainAuto extends LinearOpMode {
         waitForStart();
         runtime.reset();
 
-        initMotors(flywheel);
+        initMotors();
 
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
