@@ -5,8 +5,9 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 
 import androidx.annotation.NonNull;
 
-//import com.qualcomm.hardware.dfrobot.HuskyLens;
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -22,14 +23,33 @@ import java.util.function.Supplier;
 
 /** @noinspection unused*/
 public class Shared {
+    public static class Qol {
+        /// Last button position
+        private static final HashMap<String, Boolean> buttonStates = new HashMap<>(4);
+
+        ///  Check if this is a new press of the button or it is being held.
+        public static boolean checkButton(boolean button, String buttonName) {
+            // Set false if we don't have a value
+            buttonStates.putIfAbsent(buttonName, false);
+
+            if (button) {
+                // If we were already pressing the button
+                if (Boolean.FALSE.equals(buttonStates.get(buttonName))) {
+                    buttonStates.put(buttonName, true);
+                    return true;
+                }
+            } else {
+                buttonStates.put(buttonName, false);
+            }
+            return false;
+        }
+    }
     // Declare OpMode members for each of the 4 motors.
     public static final ElapsedTime runtime = new ElapsedTime();
     public static DcMotorEx leftFrontDrive = null;
     public static DcMotorEx leftBackDrive = null;
     public static DcMotorEx rightFrontDrive = null;
     public static DcMotorEx rightBackDrive = null;
-
-    //public static HuskyLens Camera = null;
 
 
     public static int[] motorStartPositions = null;
@@ -75,15 +95,20 @@ public class Shared {
                 rightFrontDrive.getCurrentPosition()
         };
 
-        leftFrontDrive.setDirection(DcMotorEx.Direction.FORWARD);
-        leftBackDrive.setDirection(DcMotorEx.Direction.FORWARD);
-        rightFrontDrive.setDirection(DcMotorEx.Direction.REVERSE);
-        rightBackDrive.setDirection(DcMotorEx.Direction.REVERSE);
+        leftFrontDrive.setDirection(DcMotorEx.Direction.REVERSE);
+        leftBackDrive.setDirection(DcMotorEx.Direction.REVERSE);
+        rightFrontDrive.setDirection(DcMotorEx.Direction.FORWARD);
+        rightBackDrive.setDirection(DcMotorEx.Direction.FORWARD);
+
+        leftFrontDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        leftBackDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightFrontDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightBackDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
     }
 
-    public static void initMotors(){
+    public static void initMotors(DcMotorEx flywheel){
         // UPDATEME: Add per comp initialization here
-
+        flywheel.setPower(-0.15);
     }
 
     public static void MoveMotor(int where, @NonNull DcMotorEx motor, boolean exact, int vel){
@@ -196,76 +221,151 @@ public class Shared {
 
     // Automatic Movement
 
-    /// Positions of motors
-    private static final int[] motpos = {
-            // LFront
-            0,
-            // LBack
-            0,
-            // RFront
-            0,
-            // RBack
-            0
-    };
+    public static class PowerMove {
+        public static void forward(double howmuch) {
+            leftFrontDrive.setPower(howmuch);
+            leftBackDrive.setPower(howmuch);
+            rightBackDrive.setPower(howmuch);
+            rightFrontDrive.setPower(howmuch);
+        }
 
-    public static void forward(int howmuch){
-        motpos[0] += howmuch;
-        motpos[1] += howmuch;
-        motpos[2] += howmuch;
-        motpos[3] += howmuch;
+        public static void strafeRight(double howmuch) {
+            rightFrontDrive.setPower(-howmuch);
+            leftFrontDrive.setPower(howmuch);
+
+            leftBackDrive.setPower(-howmuch);
+            rightBackDrive.setPower(howmuch);
+        }
+
+        public static void turnRight(double howmuch) {
+            rightFrontDrive.setPower(-howmuch);
+            rightBackDrive.setPower(-howmuch);
+            leftFrontDrive.setPower(howmuch);
+            leftBackDrive.setPower(howmuch);
+        }
+
+        public static void backward(double howmuch) {
+            forward(-howmuch);
+        }
+
+        public static void strafeLeft(double howmuch) {
+            strafeRight(-howmuch);
+        }
+
+        public static void turnLeft(double howmuch) {
+            turnRight(-howmuch);
+        }
+
+
+        public static void forwardFor(double howmuch, int millis) {
+            forward(howmuch);
+            registerCallback(PowerMove::stop, millis);
+        }
+
+        public static void strafeRightFor(double howmuch, int millis) {
+            strafeRight(howmuch);
+            registerCallback(PowerMove::stop, millis);
+        }
+
+        public static void turnRightFor(double howmuch, int millis) {
+            turnRight(howmuch);
+            registerCallback(PowerMove::stop, millis);
+        }
+
+        public static void backwardFor(double howmuch, int millis) {
+            forwardFor(-howmuch, millis);
+        }
+
+        public static void strafeLeftFor(double howmuch, int millis) {
+            strafeRightFor(-howmuch, millis);
+        }
+
+        public static void turnLeftFor(double howmuch, int millis) {
+            turnRightFor(-howmuch, millis);
+        }
+
+        public static void stop() {
+            leftFrontDrive.setPower(0);
+            leftBackDrive.setPower(0);
+            rightBackDrive.setPower(0);
+            rightFrontDrive.setPower(0);
+        }
     }
 
-    public static void backward(int howmuch){
-        forward(-howmuch);
-    }
+    public static class EncodedMove {
+        /// Positions of motors
+        private static final int[] motpos = {
+                // LFront
+                0,
+                // LBack
+                0,
+                // RFront
+                0,
+                // RBack
+                0
+        };
 
-    public static void turnRight(int degrees){
-        turnLeft(-degrees);
-    }
+        public static void forward(int howmuch) {
+            motpos[0] += howmuch;
+            motpos[1] += howmuch;
+            motpos[2] += howmuch;
+            motpos[3] += howmuch;
+        }
 
-    public static void turnLeft(int degrees){
-        motpos[0] += degrees;
-        motpos[1] += degrees;
-        motpos[2] -= degrees;
-        motpos[3] -= degrees;
-    }
+        public static void backward(int howmuch) {
+            forward(-howmuch);
+        }
 
-    public static void strafeRight(int howmuch){
-        motpos[0] += howmuch;
-        motpos[1] -= howmuch;
-        motpos[2] -= howmuch;
-        motpos[3] += howmuch;
-    }
+        public static void turnRight(int degrees) {
+            turnLeft(-degrees);
+        }
 
-    public static void strafeLeft(int howmuch){
-        strafeRight(-howmuch);
-    }
+        public static void turnLeft(int degrees) {
+            motpos[0] += degrees;
+            motpos[1] += degrees;
+            motpos[2] -= degrees;
+            motpos[3] -= degrees;
+        }
 
-    public static void motoGO(double vel){
-        leftFrontDrive.setTargetPosition(motpos[0]);
-        leftBackDrive.setTargetPosition(motpos[1]);
-        rightFrontDrive.setTargetPosition(motpos[2]);
-        rightBackDrive.setTargetPosition(motpos[3]);
+        public static void strafeRight(int howmuch) {
+            motpos[0] += howmuch;
+            motpos[1] -= howmuch;
+            motpos[2] -= howmuch;
+            motpos[3] += howmuch;
+        }
 
-        leftFrontDrive.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
-        leftBackDrive.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
-        rightBackDrive.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
-        rightFrontDrive.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
+        public static void strafeLeft(int howmuch) {
+            strafeRight(-howmuch);
+        }
 
-        leftFrontDrive.setVelocity(vel);
-        leftBackDrive.setVelocity(vel);
-        rightBackDrive.setVelocity(vel);
-        rightFrontDrive.setVelocity(vel);
-    }
+        public static void motoGO(double vel) {
+            leftFrontDrive.setTargetPosition(motpos[0]);
+            leftBackDrive.setTargetPosition(motpos[1]);
+            rightFrontDrive.setTargetPosition(motpos[2]);
+            rightBackDrive.setTargetPosition(motpos[3]);
 
-    public static void waitMoveDone(){
-        telemetry.addLine("Waiting for motors to stop...");
-        telemetry.update();
-        while (motorBusy()) {}
-    }
+            leftFrontDrive.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
+            leftBackDrive.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
+            rightBackDrive.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
+            rightFrontDrive.setMode(DcMotorEx.RunMode.RUN_TO_POSITION);
 
-    public static boolean motorBusy(){
-        return leftFrontDrive.isBusy() || leftBackDrive.isBusy() || rightBackDrive.isBusy() || rightFrontDrive.isBusy();
+            leftFrontDrive.setVelocity(vel);
+            leftBackDrive.setVelocity(vel);
+            rightBackDrive.setVelocity(vel);
+            rightFrontDrive.setVelocity(vel);
+        }
+
+        public static void waitMoveDone() {
+            telemetry.addLine("Waiting for motors to stop...");
+            telemetry.update();
+            while (true) {
+                if (!motorBusy()) break;
+            }
+        }
+
+        public static boolean motorBusy() {
+            return leftFrontDrive.isBusy() || leftBackDrive.isBusy() || rightBackDrive.isBusy() || rightFrontDrive.isBusy();
+        }
     }
 
     public static void eggOfEaster(){

@@ -91,7 +91,7 @@ public class MainAuto extends LinearOpMode {
         waitForStart();
         runtime.reset();
 
-        initMotors();
+        initMotors(flywheel);
 
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
