@@ -29,44 +29,64 @@
 
 package org.firstinspires.ftc.teamcode.Auto;
 
-import static org.firstinspires.ftc.teamcode.Shared.hardwareInit;
-import static org.firstinspires.ftc.teamcode.Shared.initMotors;
-import static org.firstinspires.ftc.teamcode.Shared.leftBackDrive;
-import static org.firstinspires.ftc.teamcode.Shared.leftFrontDrive;
-import static org.firstinspires.ftc.teamcode.Shared.rightBackDrive;
-import static org.firstinspires.ftc.teamcode.Shared.rightFrontDrive;
-import static org.firstinspires.ftc.teamcode.Shared.runCallbacks;
+import static org.firstinspires.ftc.teamcode.Shared.*;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.vision.VisionPortal;
+import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
+import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
+
+import java.util.List;
+
+
 @Autonomous(name="Main Auto", group="Main")
-class MainAuto extends LinearOpMode {
+public class MainAuto extends LinearOpMode {
+    // TODO: Try to find order for ~5 seconds. If unsuccessful, go random
     public boolean getOpActive(){return opModeIsActive();}
 
-    private enum mainState {
+    private enum MainState {
         findArtifactOrder,
         artifactLoop,
     }
 
-    private enum loopState {
+    private enum LoopState {
         collect3Artifacts,
         alignRobot,
         shootArtifacts,
     }
 
+    private enum Order {
+        Unknown, // Used when we can't find the order within 5 seconds
+        GPP,
+        PGP,
+        PPG,
+    }
+
+
+    private Order matchOrder = Order.Unknown;
+    private MainState currentState = MainState.findArtifactOrder;
+    private LoopState currentLoopState = LoopState.collect3Artifacts;
+
+    private AprilTagProcessor aprilTag;
+    private VisionPortal visionPortal;
+
     @Override
     public void runOpMode() {
-        // Declare OpMode members for each of the 4 motors.
-        final ElapsedTime runtime = new ElapsedTime();
-
         hardwareInit(hardwareMap, telemetry, this::getOpActive);
+
+        DcMotorEx flywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
 
         // Wait for the game to start (driver presses START)
         telemetry.addData("Status", "Initialized");
         telemetry.addLine("Remember to have the wheels form a cross across the body!!!");
         telemetry.update();
+
+        // Call this before waitForStart bc camera startup takes a bit
+        initRobot();
 
         waitForStart();
         runtime.reset();
@@ -75,13 +95,131 @@ class MainAuto extends LinearOpMode {
 
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
-            // Show the elapsed game time and wheel power.
-            telemetry.addData("Status", "Run Time: " + runtime.toString());
-            telemetry.addData("Front left/Right", "%4.2f, %4.2f", leftFrontDrive.getPower(), rightFrontDrive.getPower());
-            telemetry.addData("Back  left/Right", "%4.2f, %4.2f", leftBackDrive.getPower(), rightBackDrive.getPower());
-            telemetry.addLine("Remember to have the wheels form a cross across the body!!!");
-            telemetry.update();
+            switch (currentState) {
+                case findArtifactOrder:
+                    findArtifactOrder();
+                    break;
+                case artifactLoop:
+                    switch (currentLoopState) {
+                        case collect3Artifacts:
+                            collectArtifacts();
+                            break;
+                        case alignRobot:
+                            alignRobot();
+                            break;
+                        case shootArtifacts:
+                            shootArtifacts();
+                            break;
+                    }
+                    break;
+            }
+
 
             runCallbacks();
+            addTelemetry();
         }
-    }}
+    }
+
+    private void initRobot() {
+        aprilTag = AprilTagProcessor.easyCreateWithDefaults();
+        visionPortal = VisionPortal.easyCreateWithDefaults(
+                hardwareMap.get(WebcamName.class, "Webcam 1"),
+                aprilTag
+        );
+        //visionPortal.resumeStreaming();
+    }
+
+    private void addTelemetry() {
+        // Show the elapsed game time and wheel power.
+        telemetry.addData("State", currentState.toString());
+        telemetry.addData("Loop State", currentLoopState.toString());
+        telemetry.addData("Order", matchOrder.toString());
+        telemetry.addLine();
+
+        telemetry.addData("Run Time", runtime);
+        telemetry.addData("Front left/Right", "%4.2f, %4.2f", leftFrontDrive.getPower(), rightFrontDrive.getPower());
+        telemetry.addData("Back  left/Right", "%4.2f, %4.2f", leftBackDrive.getPower(), rightBackDrive.getPower());
+        telemetry.addLine("Remember to have the wheels form a cross across the body!!!");
+        telemetry.update();
+    }
+
+    private void findArtifactOrder() {
+        boolean seeRight = false;
+        boolean seeLeft = false;
+
+        List<AprilTagDetection> currentDetections = aprilTag.getDetections();
+        for (AprilTagDetection detection : currentDetections) {
+//            if (detection.metadata != null) {
+//                telemetry.addLine(String.format("\n==== (ID %d) %s", detection.id, detection.metadata.name));
+//                telemetry.addLine(String.format("XYZ %6.1f %6.1f %6.1f  (inch)", detection.ftcPose.x, detection.ftcPose.y, detection.ftcPose.z));
+//                telemetry.addLine(String.format("PRY %6.1f %6.1f %6.1f  (deg)", detection.ftcPose.pitch, detection.ftcPose.roll, detection.ftcPose.yaw));
+//                telemetry.addLine(String.format("RBE %6.1f %6.1f %6.1f  (inch, deg, deg)", detection.ftcPose.range, detection.ftcPose.bearing, detection.ftcPose.elevation));
+//            } else {
+//                telemetry.addLine(String.format("\n==== (ID %d) Unknown", detection.id));
+//                telemetry.addLine(String.format("Center %6.0f %6.0f   (pixels)", detection.center.x, detection.center.y));
+//            }
+            switch (detection.id) {
+                case 21:
+                    matchOrder = Order.GPP;
+                    currentState = MainState.artifactLoop;
+                    return;
+                case 22:
+                    matchOrder = Order.PGP;
+                    currentState = MainState.artifactLoop;
+                    return;
+                case 23:
+                    matchOrder = Order.PPG;
+                    currentState = MainState.artifactLoop;
+                    return;
+                case 20:
+                    seeLeft = true;
+                    // We haven't found the main order tag yet, so don't return
+                    break;
+                case 24:
+                    seeRight = true;
+                    // We haven't found the main order tag yet, so don't return
+                    break;
+                default:
+                    // We have no idea
+                    break;
+            }
+        }
+        if (runtime.seconds() > 5) {
+            matchOrder = Order.Unknown;
+            currentState = MainState.artifactLoop;
+        }
+        telemetry.addLine();
+        if (seeLeft && seeRight) {
+            // We see both but not the middle?
+            // Move forward.
+            telemetry.addData("Artifact Order Processor", "See Left and right tags");
+        } else if (seeLeft) {
+            // We only see the left tag
+            // Move right
+            telemetry.addData("Artifact Order Processor", "See Left tag");
+            PowerMove.strafeRight(0.5);
+        } else if (seeRight) {
+            // We only see the right tag
+            // Move left
+            telemetry.addData("Artifact Order Processor", "See Right tag");
+            PowerMove.strafeLeft(0.5);
+        } else {
+            // No Tags
+            telemetry.addData("Artifact Order Processor", "See no tags");
+        }
+    }
+
+    private void collectArtifacts() {
+        // We don't need apriltags for this
+        visionPortal.stopStreaming();
+    }
+
+    private void alignRobot() {
+        // Re-enable apriltags
+        visionPortal.resumeStreaming();
+    }
+
+    private void shootArtifacts() {
+
+    }
+}
